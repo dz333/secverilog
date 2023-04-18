@@ -782,7 +782,6 @@ bool Module::CollectDepInvariants(SexpPrinter &printer, TypeEnv &env) const {
   auto outStr = invs.str();
   printer.writeRawLine(outStr);
 
-varloop:
   for (auto &depVar : std::ranges::filter_view(env.dep_exprs, [&](auto &v) {
          return env.varsToBase.contains(v) && env.varsToBase.at(v) &&
                 env.varsToBase.at(v)->isSeqType();

@@ -122,9 +122,15 @@ bool isDefinitelyAssigned(PEIdent *varname, PathAnalysis &paths) {
 
 void Statement::collect_assign_paths(PathAnalysis &, TypeEnv &, Predicate &) {}
 
-void PAssign_::collect_assign_paths(PathAnalysis &paths, TypeEnv &,
+void PAssign_::collect_assign_paths(PathAnalysis &paths, TypeEnv &env,
                                     Predicate &pred) {
-  paths[lval()->get_full_name()].push_back(pred);
+  auto type = env.varsToType[lval()->get_name()];
+  if (dynamic_cast<QuantType *>(
+          type)) { // we care about indices for quant types
+    paths[lval()->get_full_name()].push_back(pred);
+  } else { // otherwise just the whole array
+    paths[lval()->get_name()].push_back(pred);
+  }
 }
 
 void PBlock::collect_assign_paths(PathAnalysis &paths, TypeEnv &env,
@@ -133,9 +139,15 @@ void PBlock::collect_assign_paths(PathAnalysis &paths, TypeEnv &env,
     list_[i]->collect_assign_paths(paths, env, pred);
 }
 
-void PCAssign::collect_assign_paths(PathAnalysis &paths, TypeEnv &,
+void PCAssign::collect_assign_paths(PathAnalysis &paths, TypeEnv &env,
                                     Predicate &pred) {
-  paths[lval_->get_full_name()].push_back(pred);
+  auto type = env.varsToType[lval_->get_name()];
+  if (dynamic_cast<QuantType *>(
+          type)) { // we care about indices for quant types
+    paths[lval_->get_full_name()].push_back(pred);
+  } else { // otherwise just the whole array
+    paths[lval_->get_name()].push_back(pred);
+  }
 }
 
 void PCondit::collect_assign_paths(PathAnalysis &paths, TypeEnv &env,
