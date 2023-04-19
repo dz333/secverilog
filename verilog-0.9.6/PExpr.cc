@@ -21,6 +21,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <iterator>
 #include <sstream>
 #include <string>
 #include <typeinfo>
@@ -33,6 +34,7 @@
 #include "StringHeap.h"
 #include "netmisc.h"
 #include "parse_misc.h"
+#include "pform_types.h"
 #include "svector.h"
 #include "verireal.h"
 
@@ -319,11 +321,32 @@ bool PEIdent::is_wellformed(set<perm_string> s) {
 PExpr *PEIdent::to_wellformed(set<perm_string> s) { return this; }
 
 PExpr *PEIdent::subst(map<perm_string, perm_string> m) {
-  map<perm_string, perm_string>::iterator ite = m.find(get_name());
-  if (ite == m.end())
-    return this;
-  else
-    return new PEIdent((*ite).second);
+  pform_name_t new_name;
+  std::transform(path_.cbegin(), path_.cend(), std::back_inserter(new_name),
+                 [&](const auto &component) {
+                   auto name                           = component.name;
+                   name_component_t new_name_component = component;
+                   if (m.contains(name)) {
+                     new_name_component = name_component_t(m.at(name));
+                   }
+
+                   decltype(component.index) new_index;
+                   std::transform(
+                       component.index.cbegin(), component.index.cend(),
+                       std::back_inserter(new_index), [&](const auto &idx) {
+                         index_component_t comp = idx;
+                         if (idx.msb) {
+                           comp.msb = idx.msb->subst(m);
+                         }
+                         if (idx.lsb) {
+                           comp.lsb = idx.lsb->subst(m);
+                         }
+                         return comp;
+                       });
+                   new_name_component.index = new_index;
+                   return new_name_component;
+                 });
+  return new PEIdent(new_name);
 }
 
 PENumber::PENumber(verinum *vp) : value_(vp) { assert(vp); }
