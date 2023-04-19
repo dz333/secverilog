@@ -11,8 +11,8 @@ module array(clk, reset, sel);
    wire [15:0] {L} pub_data_val;
    wire [3:0]  {L} pub_index_val;
    
-   reg [15:0] seq {L} data_array[3:0];
-   reg [15:0] {L} data_array_com[3:0];
+   reg [15:0] seq {|i| L} data_array[3:0];
+   reg [15:0] {|i| L} data_array_com[3:0];
 
 
    always@(posedge clk) begin
