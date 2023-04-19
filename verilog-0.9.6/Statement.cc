@@ -246,10 +246,14 @@ PForStatement::PForStatement(PExpr *n1, PExpr *e1, PExpr *cond, PExpr *n2,
 PForStatement::~PForStatement() {}
 
 void PForStatement::collectAssigned(set<perm_string> &s) const {
-  PEIdent *itervar = dynamic_cast<PEIdent *>(name2_);
-  if (itervar)
-    s.insert(itervar->get_name());
-  statement_->collectAssigned(s);
+  return;
+  // the following is only true if the loop is guaranteed to run once
+  // this is a place where it would be nice to invoke Z3 IN the compiler
+  // to confirm that this is the case
+  // PEIdent *itervar = dynamic_cast<PEIdent *>(name2_);
+  // if (itervar)
+  //   s.insert(itervar->get_name());
+  // statement_->collectAssigned(s);
 }
 
 PProcess::~PProcess() { delete statement_; }
