@@ -179,14 +179,14 @@ SecType *IndexType::subst(perm_string e1, str_or_num &e2) {
   return new IndexType(name_, substlist);
 }
 
-SecType *IndexType::subst(map<perm_string, perm_string> m) {
+SecType *IndexType::subst(const map<perm_string, str_or_num> &m) {
   list<str_or_num> substlist;
-  std::transform(TRANSFORM_IT(exprs_, substlist), [&](const auto &old) {
-    auto str = std::get_if<perm_string>(&old);
+  std::transform(TRANSFORM_IT(exprs_, substlist), [&](const auto &n) {
+    auto str = std::get_if<perm_string>(&n);
     if (str && m.contains(*str))
-      return str_or_num(m.at(*str));
+      return m.at(*str);
     else
-      return old;
+      return n;
   });
 
   return new IndexType(name_, substlist);
