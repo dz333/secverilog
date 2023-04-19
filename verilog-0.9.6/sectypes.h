@@ -171,8 +171,8 @@ public:
   void set_type(const perm_string name, list<str_or_num> &exprs);
   perm_string get_name() const;
   list<str_or_num> get_exprs() const;
-  SecType *subst(perm_string e1, str_or_num &e2);
-  SecType *subst(const map<perm_string, str_or_num> &m);
+  virtual SecType *subst(perm_string e1, str_or_num &e2);
+  virtual SecType *subst(map<perm_string, perm_string> m);
   virtual SecType *next_cycle(TypeEnv &env);
   void collect_dep_expr(set<perm_string> &m);
   SecType *freshVars(unsigned int lineno, map<perm_string, perm_string> &m);
@@ -211,8 +211,8 @@ public:
   bool isTop() { return comp1_->isTop() || comp2_->isTop(); }
   SecType *simplify();
   bool equals(SecType *st);
-  SecType *subst(perm_string e1, perm_string e2);
-  SecType *subst(map<perm_string, perm_string> m);
+  virtual SecType *subst(perm_string e1, perm_string e2);
+  virtual SecType *subst(map<perm_string, perm_string> m);
   virtual SecType *next_cycle(TypeEnv &env);
   void collect_dep_expr(set<perm_string> &m);
   SecType *freshVars(unsigned int lineno, map<perm_string, perm_string> &m);

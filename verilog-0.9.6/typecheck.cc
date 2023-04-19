@@ -938,7 +938,7 @@ void checkUnassignedPaths(SexpPrinter &printer, TypeEnv &env, Module &m) {
 
       std::string note("checking unassigned paths of ");
       note += v.str();
-      if (wire->get_isarray()) {
+      if (wire->get_isarray() && dynamic_cast<QuantType *>(sectype)) {
         if (debug_typecheck)
           cerr << v << " is an array\n";
         // do array stuff;
