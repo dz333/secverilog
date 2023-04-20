@@ -400,6 +400,9 @@ public:
   virtual SecType *typecheck(SexpPrinter &, TypeEnv &) const;
   virtual void collect_idens(set<perm_string> &s) const;
   virtual void collect_index_exprs(set<perm_string> &s, TypeEnv &);
+  bool hasIndexExpr() const {
+    return path_.back().index.begin() != path_.back().index.end();
+  }
   virtual BaseType *check_base_type(SexpPrinter &,
                                     map<perm_string, BaseType *> &varsToBase);
 

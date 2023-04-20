@@ -1424,9 +1424,13 @@ void typecheck_assignment(SexpPrinter &printer, PExpr *lhs, PExpr *rhs,
     }
 
     rtype = new JoinType(rhs->typecheck(printer, env), env.pc);
-    if (lident != NULL) {
-      // if lhs is v[x], want to include type(x) in the rhs type
-      rtype = new JoinType(rtype, lident->typecheckIdx(printer, env));
+    // if lhs is v[x], want to include type(x) in the rhs type
+    rtype = new JoinType(rtype, lident->typecheckIdx(printer, env));
+    // if lhs is NOT a quant type and this is an indexed expression
+    // (i.e., we are only assigning to part of the variable)
+    // then add ltype_orig into rtype
+    if (!dynamic_cast<QuantType *>(ltype_orig) && lident->hasIndexExpr()) {
+      rtype = new JoinType(rtype, ltype_orig);
     }
     if (debug_typecheck) {
       cerr << "line no" << lineno << endl;
