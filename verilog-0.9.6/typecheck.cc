@@ -1375,20 +1375,18 @@ void typecheck_assignment_constraint(SexpPrinter &printer, SecType *lhs,
   collect_used_genvars(genvars, rhs, env);
   printer.lineBreak();
   printer.singleton("push");
+  Constraint c = Constraint(lhs, rhs, env.invariants, &pred);
+  dump_constraint(printer, c, genvars, env);
   if (checkDefAssign) {
     printer.startList("assert");
     // TODO make the genvars get selected based on defAssign analysis
     // for only this assertion
-    start_dump_genvar_quantifiers(printer, genvars, env);
     printer.startList("not");
     dump_is_def_assign(printer, env.analysis, checkDefAssign->get_full_name(),
                        env);
     printer.endList();
-    end_dump_genvar_quantifiers(printer, genvars);
     printer.endList();
   }
-  Constraint c = Constraint(lhs, rhs, env.invariants, &pred);
-  dump_constraint(printer, c, genvars, env);
 
   printer.addComment(note);
   printer.startList("echo");

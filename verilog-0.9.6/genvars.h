@@ -19,6 +19,9 @@ void start_dump_genvar_quantifiers(SexpPrinter &printer,
 void end_dump_genvar_quantifiers(SexpPrinter &printer,
                                  std::set<perm_string> &vars);
 
+void dump_genvar_pred(SexpPrinter &printer, std::set<perm_string> &vars,
+                      TypeEnv &env);
+
 void dump_genvar_every(SexpPrinter &printer, std::set<perm_string> &vars,
                        TypeEnv &env,
                        const std::function<void(SexpPrinter &)> &body);

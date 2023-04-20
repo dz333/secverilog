@@ -706,8 +706,9 @@ void Equality::dump(SexpPrinter &printer) const {
 
 void dump_constraint(SexpPrinter &printer, Constraint &c,
                      std::set<perm_string> genvars, TypeEnv &env) {
+  dump_genvar_pred(printer, genvars, env);
   printer.startList("assert");
-  start_dump_genvar_quantifiers(printer, genvars, env);
+
   bool hashypo = c.pred != NULL && c.pred->hypotheses.size() != 0;
   bool hasinv  = c.invariant != NULL && c.invariant->invariants.size() != 0;
 
@@ -728,6 +729,5 @@ void dump_constraint(SexpPrinter &printer, Constraint &c,
     printer.endList();
   }
 
-  end_dump_genvar_quantifiers(printer, genvars);
   printer.endList(); // end assert
 }

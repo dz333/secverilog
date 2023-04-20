@@ -23,6 +23,7 @@ void collect_used_genvars(std::set<perm_string> &res, SecType *typ,
     }
   }
 }
+// for establish invariants only, not label checking
 // this must be followed eventually by end_dump
 void start_dump_genvar_quantifiers(SexpPrinter &printer,
                                    std::set<perm_string> &vars, TypeEnv &env) {
@@ -107,6 +108,33 @@ void dump_genvar_every(SexpPrinter &printer, std::set<perm_string> &vars,
       }
     });
   });
+}
+
+void dump_genvar_pred(SexpPrinter &printer, std::set<perm_string> &vars,
+                      TypeEnv &env) {
+  if (vars.empty()) {
+    return;
+  }
+  for (auto g : vars) {
+    printer.startList("declare-fun");
+    printer << g.str() << "()"
+            << "Int";
+    printer.endList();
+    if (!env.genVarVals.count(g) || env.genVarVals[g].empty()) {
+      std::cerr << "no genVarVals for " << g.str() << endl;
+      throw "Missing genVarVals for genvar";
+    }
+    auto vals = env.genVarVals[g];
+    printer.startList("assert");
+    printer.startList("or");
+    for (auto v : vals) {
+      printer.startList("=");
+      printer << g.str() << std::to_string(v);
+      printer.endList();
+    }
+    printer.endList();
+    printer.endList();
+  }
 }
 
 void PGenerate::fill_genvar_vals(
