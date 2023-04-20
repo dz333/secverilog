@@ -829,8 +829,8 @@ bool Module::CollectDepInvariants(SexpPrinter &printer, TypeEnv &env) const {
                                    [depVar](auto &v) {
                                      auto str       = std::string(v.first);
                                      auto brack_idx = str.find_first_of('[');
-                                     if (brack_idx == 0)
-                                       brack_idx = str.size();
+                                     if (brack_idx == std::string::npos)
+                                       return false;
                                      auto lit = perm_string::literal(
                                          str.substr(0, brack_idx).c_str());
                                      return lit == depVar;
@@ -911,7 +911,6 @@ bool Module::CollectDepInvariants(SexpPrinter &printer, TypeEnv &env) const {
           });
         });
       });
-      // }
     } else {
       auto &branches = env.analysis[depVar];
       if (!branches.empty()) {
@@ -969,7 +968,7 @@ void checkUnassignedPaths(SexpPrinter &printer, TypeEnv &env, Module &m) {
 
       std::string note("checking unassigned paths of ");
       note += v.str();
-      if (wire->get_isarray() && dynamic_cast<QuantType *>(sectype)) {
+      if (dynamic_cast<QuantType *>(sectype)) {
         if (debug_typecheck)
           cerr << v << " is an array\n";
         // do array stuff;
@@ -1030,7 +1029,7 @@ void checkUnassignedPaths(SexpPrinter &printer, TypeEnv &env, Module &m) {
                       printer.inList("=", [&]() {
                         printer << std::to_string(i) << a.first;
                       });
-                      dump_on_paths(printer, a.second);
+                      dump_on_paths(printer, a.second, env);
                     });
                   }
                 });
@@ -1079,8 +1078,9 @@ void checkUnassignedPaths(SexpPrinter &printer, TypeEnv &env, Module &m) {
         printer.inList("echo", [&]() { printer.printString(note); });
 
         printer.inList("assert", [&]() {
-          printer.inList(
-              "not", [&]() { dump_is_def_assign(printer, env.analysis, v); });
+          printer.inList("not", [&]() {
+            dump_is_def_assign(printer, env.analysis, v, env);
+          });
         });
 
         auto next_sectype = sectype->next_cycle(env);
@@ -1381,7 +1381,8 @@ void typecheck_assignment_constraint(SexpPrinter &printer, SecType *lhs,
     // for only this assertion
     start_dump_genvar_quantifiers(printer, genvars, env);
     printer.startList("not");
-    dump_is_def_assign(printer, env.analysis, checkDefAssign->get_full_name());
+    dump_is_def_assign(printer, env.analysis, checkDefAssign->get_full_name(),
+                       env);
     printer.endList();
     end_dump_genvar_quantifiers(printer, genvars);
     printer.endList();
