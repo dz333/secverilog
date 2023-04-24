@@ -525,8 +525,9 @@ void PEBinary::dumpz3(SexpPrinter &printer) const {
     printer.endList();
     return;
   }
-  std::cerr << "No support for given binary operator: " << op_ << std::endl;
-  throw("No support for given binary operator: ");
+  auto msg = new std::string("No support for given binary operator: ");
+  *msg += op_;
+  throw std::runtime_error(*msg);
 }
 
 void PWire::dump(ostream &out, unsigned ind) const {

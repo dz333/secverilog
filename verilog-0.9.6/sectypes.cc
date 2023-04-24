@@ -75,31 +75,31 @@ SecType *ConstType::freshVars(unsigned int lineno,
                               map<perm_string, perm_string> &m) {
   return this;
 }
-void SecType::emitFlowsTo(SexpPrinter &printer, SecType *rhs) {
+void SecType::emitFlowsTo(SexpPrinter &printer, SecType *rhs, Module *mod) {
   JoinType *right_join     = dynamic_cast<JoinType *>(rhs);
   MeetType *right_meet     = dynamic_cast<MeetType *>(rhs);
   QuantType *right_quant   = dynamic_cast<QuantType *>(rhs);
   PolicyType *right_policy = dynamic_cast<PolicyType *>(rhs);
   if (right_join) {
     printer.startList("or");
-    emitFlowsTo(printer, right_join->getFirst());
-    emitFlowsTo(printer, right_join->getSecond());
+    emitFlowsTo(printer, right_join->getFirst(), mod);
+    emitFlowsTo(printer, right_join->getSecond(), mod);
     printer.endList();
     return;
   }
   if (right_meet) {
     printer.startList("and");
-    emitFlowsTo(printer, right_meet->getFirst());
-    emitFlowsTo(printer, right_meet->getSecond());
+    emitFlowsTo(printer, right_meet->getFirst(), mod);
+    emitFlowsTo(printer, right_meet->getSecond(), mod);
     printer.endList();
     return;
   }
   if (right_quant) {
-    emitFlowsTo(printer, right_quant->getInnerType());
+    emitFlowsTo(printer, right_quant->getInnerType(), mod);
     return;
   }
   if (right_policy) {
-    emitFlowsTo(printer, right_policy->get_lower());
+    emitFlowsTo(printer, right_policy->get_lower(), mod);
     return;
   }
   printer.startList("leq");
@@ -308,10 +308,10 @@ JoinType::JoinType(SecType *ty1, SecType *ty2) {
 
 JoinType::~JoinType() {}
 
-void JoinType::emitFlowsTo(SexpPrinter &printer, SecType *rhs) {
+void JoinType::emitFlowsTo(SexpPrinter &printer, SecType *rhs, Module *mod) {
   printer.startList("and");
-  getFirst()->emitFlowsTo(printer, rhs);
-  getSecond()->emitFlowsTo(printer, rhs);
+  getFirst()->emitFlowsTo(printer, rhs, mod);
+  getSecond()->emitFlowsTo(printer, rhs, mod);
   printer.endList();
 }
 
@@ -484,10 +484,10 @@ SecType *MeetType::freshVars(unsigned int lineno,
 bool MeetType::hasExpr(perm_string str) {
   return comp1_->hasExpr(str) || comp2_->hasExpr(str);
 }
-void MeetType::emitFlowsTo(SexpPrinter &printer, SecType *rhs) {
+void MeetType::emitFlowsTo(SexpPrinter &printer, SecType *rhs, Module *mod) {
   printer.startList("or");
-  getFirst()->emitFlowsTo(printer, rhs);
-  getSecond()->emitFlowsTo(printer, rhs);
+  getFirst()->emitFlowsTo(printer, rhs, mod);
+  getSecond()->emitFlowsTo(printer, rhs, mod);
   printer.endList();
 }
 
@@ -617,23 +617,23 @@ void PolicyType::collect_dep_expr(set<perm_string> &m) {
   std::for_each(CONST_IT(_dynamic), collect);
 }
 
-void PolicyType::emitFlowsTo(SexpPrinter &printer, SecType *rhs) {
+void PolicyType::emitFlowsTo(SexpPrinter &printer, SecType *rhs, Module *mod) {
   PolicyType *right_policy = dynamic_cast<PolicyType *>(rhs);
   ConstType *right_const   = dynamic_cast<ConstType *>(rhs);
   VarType *right_var       = dynamic_cast<VarType *>(rhs);
   IndexType *right_index   = dynamic_cast<IndexType *>(rhs);
   if (right_const || right_var || right_index) {
-    get_upper()->emitFlowsTo(printer, rhs);
+    get_upper()->emitFlowsTo(printer, rhs, mod);
     return;
   }
   if (right_policy) {
     printer.startList("or");
-    get_upper()->emitFlowsTo(printer, right_policy->get_lower());
+    get_upper()->emitFlowsTo(printer, right_policy->get_lower(), mod);
     printer.startList("and");
     // lower bound to lower bound
-    get_lower()->emitFlowsTo(printer, right_policy->get_lower());
+    get_lower()->emitFlowsTo(printer, right_policy->get_lower(), mod);
     // upper bound to upper bound
-    get_upper()->emitFlowsTo(printer, right_policy->get_upper());
+    get_upper()->emitFlowsTo(printer, right_policy->get_upper(), mod);
     // only emit erasure check if target is next cycle
     if (right_policy->isNextType()) {
       printer.startList("not");
@@ -643,24 +643,85 @@ void PolicyType::emitFlowsTo(SexpPrinter &printer, SecType *rhs) {
     }
     // erasure condition must be at least as strong
     // quantify over all possible static variables
-    auto leftlist  = _static;
-    auto rightlist = right_policy->get_static();
+    std::set<string> quantlist;
+    std::list<str_or_num> leftlist;
+    std::list<str_or_num> rightlist;
+    std::map<perm_string, perm_string> submap;
+    printer.startList("forall");
+    printer.startList();
+
+    for (auto &lq : _static) {
+      string s = string("quant_");
+      s += std::visit(str_or_num_to_string(), lq);
+      perm_string ns = lex_strings.make(s.c_str());
+      quantlist.insert(s);
+      leftlist.emplace_back(ns);
+      if (auto *v = std::get_if<perm_string>(&lq)) {
+        submap[*v] = ns;
+      }
+    }
+
+    for (auto &rq : right_policy->get_static()) {
+      string s = string("quant_");
+      s += std::visit(str_or_num_to_string(), rq);
+      perm_string ns = lex_strings.make(s.c_str());
+      quantlist.insert(s);
+      rightlist.emplace_back(ns);
+      if (auto *v = std::get_if<perm_string>(&rq)) {
+        submap[*v] = ns;
+      }
+    }
+
+    for (auto &q : quantlist) {
+      printer.startList(q);
+      printer << "Int";
+      printer.endList();
+    }
+    printer.endList(); // end quant variable decl
+
+    printer.startList("implies");
+    printer.startList("and");
+    for (auto &qp : submap) {
+      printer.startList("<=");
+      printer << "0" << qp.second.str();
+      printer.endList();
+      printer.startList("<=");
+      printer << qp.second.str()
+              << std::to_string((1 << (mod->wires[qp.first]->getRange() + 1)) -
+                                1);
+      printer.endList();
+    }
+
+    // rename any static variables in the assumptions with
+    // their new quant names
+    PExpr *assumption = mod->getAssumptions();
+    if (assumption) {
+      Predicate tmp;
+      Hypothesis h(assumption);
+      tmp.hypotheses.insert(&h);
+      printer << *tmp.subst(submap);
+    }
+    printer.endList(); // end and
 
     // append all (non quantified) dynamic variables
     leftlist.insert(leftlist.end(), CONST_IT(_dynamic));
 
     const auto &rdynamic = right_policy->get_dynamic();
     rightlist.insert(rightlist.end(), CONST_IT(rdynamic));
+
     printer.startList("implies");
     dumpZ3Func(printer, _cond_name, leftlist);
     dumpZ3Func(printer, right_policy->get_cond(), rightlist);
+    printer.endList();
+
+    printer.endList(); // end assumption and bound implies
     printer.endList();
     printer.endList();
     printer.endList();
     return;
   }
   // else do super class behavior
-  SecType::emitFlowsTo(printer, rhs);
+  SecType::emitFlowsTo(printer, rhs, mod);
 }
 ////////////////////////////
 
@@ -723,7 +784,7 @@ void dump_constraint(SexpPrinter &printer, Constraint &c,
   }
 
   printer.startList("not");
-  c.right->simplify()->emitFlowsTo(printer, c.left->simplify());
+  c.right->simplify()->emitFlowsTo(printer, c.left->simplify(), env.module);
   printer.endList();
   if (hashypo || hasinv) {
     printer.endList();
