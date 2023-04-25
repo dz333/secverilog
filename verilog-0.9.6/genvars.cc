@@ -1,6 +1,11 @@
 #include "genvars.h"
+#include "PExpr.h"
+#include "StringHeap.h"
+#include "sexp_printer.h"
+#include <iterator>
+#include <stdexcept>
 
-void collect_used_genvars(std::set<perm_string> &res, Predicate &pred,
+void collect_used_genvars(std::set<perm_string> &res, const Predicate &pred,
                           TypeEnv &env) {
   for (auto h : pred.hypotheses) {
     h->bexpr_->collect_used_genvars(res, env);
@@ -18,6 +23,7 @@ void collect_used_genvars(std::set<perm_string> &res, SecType *typ,
     }
   }
 }
+// for establish invariants only, not label checking
 // this must be followed eventually by end_dump
 void start_dump_genvar_quantifiers(SexpPrinter &printer,
                                    std::set<perm_string> &vars, TypeEnv &env) {
@@ -60,6 +66,75 @@ void end_dump_genvar_quantifiers(SexpPrinter &printer,
   }
   printer.endList(); // end =>
   printer.endList(); // end forall
+}
+
+// this function is used on the unassigned path check, as we want to be able to
+// check if something is true under ANY of the generate values, as the all run.
+void dump_genvar_every(SexpPrinter &printer, std::set<perm_string> &vars,
+                       TypeEnv &env,
+                       const std::function<void(SexpPrinter &)> &body) {
+  if (vars.empty()) {
+    body(printer);
+    return;
+  }
+
+  if (vars.size() != 1) {
+    throw std::runtime_error("cannot have multiple genvars on path! (sorry)");
+  }
+
+  printer.inList("forall", [&]() {
+    printer.startList();
+    // declare all quantified variables
+    for (auto g : vars) {
+      printer.inList(g.str(), [&]() { printer << "Int"; });
+    }
+    printer.endList();
+
+    printer.inList("or", [&] {
+      for (auto g : vars) {
+
+        if (!env.genVarVals.count(g) || env.genVarVals[g].empty()) {
+          std::cerr << "no genVarVals for " << g.str() << endl;
+          throw "Missing genVarVals for genvar";
+        }
+        auto vals = env.genVarVals[g];
+        for (auto v : vals) {
+          printer.inList("=>", [&]() {
+            printer.inList("=",
+                           [&]() { printer << g.str() << std::to_string(v); });
+            body(printer);
+          });
+        }
+      }
+    });
+  });
+}
+
+void dump_genvar_pred(SexpPrinter &printer, std::set<perm_string> &vars,
+                      TypeEnv &env) {
+  if (vars.empty()) {
+    return;
+  }
+  for (auto g : vars) {
+    printer.startList("declare-fun");
+    printer << g.str() << "()"
+            << "Int";
+    printer.endList();
+    if (!env.genVarVals.count(g) || env.genVarVals[g].empty()) {
+      std::cerr << "no genVarVals for " << g.str() << endl;
+      throw "Missing genVarVals for genvar";
+    }
+    auto vals = env.genVarVals[g];
+    printer.startList("assert");
+    printer.startList("or");
+    for (auto v : vals) {
+      printer.startList("=");
+      printer << g.str() << std::to_string(v);
+      printer.endList();
+    }
+    printer.endList();
+    printer.endList();
+  }
 }
 
 void PGenerate::fill_genvar_vals(

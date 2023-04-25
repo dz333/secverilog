@@ -7,7 +7,7 @@ sat
 End base conditions are satisfiable?
 unsat
 unsat
-sat
+unknown
 unsat
 unsat
 unsat
@@ -26,4 +26,4 @@ unsat
 unsat
 unsat
 unsat
-sat
+unknown

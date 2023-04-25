@@ -48,18 +48,27 @@ PathAnalysis get_paths(Module &m, TypeEnv &env) {
 }
 
 void dump_is_def_assign(SexpPrinter &p, PathAnalysis &path_analysis,
-                        perm_string varname) {
+                        perm_string varname, TypeEnv &env) {
 
   if (!path_analysis.contains(varname) || path_analysis[varname].empty()) {
     p << "false";
     return;
   }
-  dump_on_paths(p, path_analysis[varname]);
+  dump_on_paths(p, path_analysis[varname], env);
 }
 
-void dump_on_paths(SexpPrinter &p, const std::vector<Predicate> &paths) {
-  p.inList("or", [&]() {
-    std::for_each(paths.begin(), paths.end(), [&p](auto &path) { p << path; });
+void dump_on_paths(SexpPrinter &p, const std::vector<Predicate> &paths,
+                   TypeEnv &env) {
+  std::set<perm_string> genvars;
+  for (auto &path : paths) {
+    collect_used_genvars(genvars, path, env);
+  }
+
+  dump_genvar_every(p, genvars, env, [&](SexpPrinter &printer) {
+    printer.inList("or", [&]() {
+      std::for_each(paths.begin(), paths.end(),
+                    [&printer](auto &path) { printer << path; });
+    });
   });
 }
 
@@ -167,12 +176,15 @@ void PCondit::collect_assign_paths(PathAnalysis &paths, TypeEnv &env,
 
 void PForStatement::collect_assign_paths(PathAnalysis &paths, TypeEnv &env,
                                          Predicate &pred) {
-  auto oldPred = pred;
-  if (statement_) {
-    absintp(pred, env);
-    statement_->collect_assign_paths(paths, env, pred);
-    pred.hypotheses = oldPred.hypotheses;
-  }
+  // auto oldPred = pred;
+  // if (statement_) {
+  //   absintp(pred, env);
+  //   statement_->collect_assign_paths(paths, env, pred);
+  //   pred.hypotheses = oldPred.hypotheses;
+  // }
+  cerr << "warning! for statement not counted for unassigned paths. (don't put "
+          "seq types here!)"
+       << endl;
 }
 
 void PEventStatement::collect_assign_paths(PathAnalysis &paths, TypeEnv &env,
