@@ -1466,7 +1466,7 @@ void typecheck_assignment(SexpPrinter &printer, PExpr *lhs, PExpr *rhs,
       if (!defAssgns.contains(lhs->get_name())) {
         string newNote = note + "--No-sensitive-upgrade-check;";
         Predicate emptyPred;
-        typecheck_assignment_constraint(printer, ltype_orig, env.pc, emptyPred,
+        typecheck_assignment_constraint(printer, ltype_orig, env.pc, precond,
                                         newNote, NULL, env);
       }
       printer.singleton("pop");
@@ -1899,16 +1899,18 @@ void PCase::typecheck(SexpPrinter &printer, TypeEnv &env, Predicate &pred,
       }
     }
   }
+  SecType *oldpc               = env.pc;
+  set<Hypothesis *> beforecase = pred.hypotheses;
+  Predicate tmp                = pred;
+  Predicate aftercase;
 
   for (unsigned idx = 0; idx < items_->count(); idx += 1) {
     PCase::Item *cur = (*items_)[idx];
-    SecType *oldpc   = env.pc;
     bool need_hypo =
         env.dep_exprs.find(expr_->get_name()) != env.dep_exprs.end();
     env.pc = new JoinType(expr_->typecheck(printer, env), oldpc);
     env.pc = env.pc->simplify();
 
-    Predicate oldh = pred;
     if (need_hypo) {
       if (cur->expr.count() != 0) {
         for (unsigned e = 0; e < cur->expr.count(); e += 1)
@@ -1920,10 +1922,12 @@ void PCase::typecheck(SexpPrinter &printer, TypeEnv &env, Predicate &pred,
       cur->stat->typecheck(
           printer, env, pred /* add case condition to assumptions */, defAssgn);
     }
-
-    pred   = oldh;
-    env.pc = oldpc;
+    merge(pred, tmp, aftercase);
+    tmp.hypotheses  = aftercase.hypotheses;
+    pred.hypotheses = beforecase;
   }
+  pred.hypotheses = aftercase.hypotheses;
+  env.pc          = oldpc;
 }
 
 /**

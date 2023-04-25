@@ -102,6 +102,16 @@ void PCondit::absintp(Predicate &pred, TypeEnv &env, bool istrue,
 /**
  * Merge point of a branch. Simply take the intersection of two sets.
  */
+void PCase::merge(Predicate &pred1, Predicate &pred2, Predicate &ret) const {
+  std::set_intersection(pred1.hypotheses.begin(), pred1.hypotheses.end(),
+                        pred2.hypotheses.begin(), pred2.hypotheses.end(),
+                        inserter(ret.hypotheses, ret.hypotheses.begin()),
+                        HypothesisComparator());
+}
+
+/**
+ * Merge point of a branch. Simply take the intersection of two sets.
+ */
 void PCondit::merge(Predicate &pred1, Predicate &pred2, Predicate &ret) const {
   std::set_intersection(pred1.hypotheses.begin(), pred1.hypotheses.end(),
                         pred2.hypotheses.begin(), pred2.hypotheses.end(),
