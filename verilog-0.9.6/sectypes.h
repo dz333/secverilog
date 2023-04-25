@@ -102,8 +102,7 @@ public:
                                const str_or_num &index_val) {
     return this;
   }
-  //  BasicType& operator= (const BasicType&);
-  virtual void emitFlowsTo(SexpPrinter &printer, SecType *rhs);
+  virtual void emitFlowsTo(SexpPrinter &printer, SecType *rhs, Module *mod);
 };
 
 class ConstType : public SecType {
@@ -219,7 +218,7 @@ public:
   void collect_dep_expr(set<perm_string> &m);
   SecType *freshVars(unsigned int lineno, map<perm_string, perm_string> &m);
   bool hasExpr(perm_string str);
-  virtual void emitFlowsTo(SexpPrinter &printer, SecType *rhs);
+  virtual void emitFlowsTo(SexpPrinter &printer, SecType *rhs, Module *mod);
   bool isDepType() { return comp1_->isDepType() || comp2_->isDepType(); }
 
 private:
@@ -255,7 +254,7 @@ public:
   void collect_dep_expr(set<perm_string> &m);
   SecType *freshVars(unsigned int lineno, map<perm_string, perm_string> &m);
   bool hasExpr(perm_string str);
-  virtual void emitFlowsTo(SexpPrinter &printer, SecType *rhs);
+  virtual void emitFlowsTo(SexpPrinter &printer, SecType *rhs, Module *mod);
   bool isDepType() { return comp1_->isDepType() || comp2_->isDepType(); }
 
 private:
@@ -302,8 +301,8 @@ public:
   bool isDepType() { return _sectype->isDepType(); }
   bool hasExpr(perm_string str) { return _sectype->hasExpr(str); }
 
-  virtual void emitFlowsTo(SexpPrinter &printer, SecType *rhs) {
-    _sectype->emitFlowsTo(printer, rhs);
+  virtual void emitFlowsTo(SexpPrinter &printer, SecType *rhs, Module *mod) {
+    _sectype->emitFlowsTo(printer, rhs, mod);
   }
 
 private:
@@ -400,7 +399,7 @@ public:
     return arglist;
   }
 
-  virtual void emitFlowsTo(SexpPrinter &printer, SecType *rhs);
+  virtual void emitFlowsTo(SexpPrinter &printer, SecType *rhs, Module *mod);
   virtual bool equals(SecType *st);
   bool isDepType() { return true; };
 
@@ -425,6 +424,8 @@ struct Predicate {
 
   Predicate &operator=(const Predicate &);
   Predicate *subst(map<perm_string, perm_string> m) const;
+  Predicate() : hypotheses() {}
+  Predicate(const Predicate &p) : hypotheses(p.hypotheses) {}
 };
 
 struct Equality {

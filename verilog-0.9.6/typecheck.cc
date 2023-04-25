@@ -829,8 +829,8 @@ bool Module::CollectDepInvariants(SexpPrinter &printer, TypeEnv &env) const {
                                    [depVar](auto &v) {
                                      auto str       = std::string(v.first);
                                      auto brack_idx = str.find_first_of('[');
-                                     if (brack_idx == 0)
-                                       brack_idx = str.size();
+                                     if (brack_idx == std::string::npos)
+                                       return false;
                                      auto lit = perm_string::literal(
                                          str.substr(0, brack_idx).c_str());
                                      return lit == depVar;
@@ -911,7 +911,6 @@ bool Module::CollectDepInvariants(SexpPrinter &printer, TypeEnv &env) const {
           });
         });
       });
-      // }
     } else {
       auto &branches = env.analysis[depVar];
       if (!branches.empty()) {
@@ -969,7 +968,7 @@ void checkUnassignedPaths(SexpPrinter &printer, TypeEnv &env, Module &m) {
 
       std::string note("checking unassigned paths of ");
       note += v.str();
-      if (wire->get_isarray() && dynamic_cast<QuantType *>(sectype)) {
+      if (dynamic_cast<QuantType *>(sectype)) {
         if (debug_typecheck)
           cerr << v << " is an array\n";
         // do array stuff;
@@ -1030,7 +1029,7 @@ void checkUnassignedPaths(SexpPrinter &printer, TypeEnv &env, Module &m) {
                       printer.inList("=", [&]() {
                         printer << std::to_string(i) << a.first;
                       });
-                      dump_on_paths(printer, a.second);
+                      dump_on_paths(printer, a.second, env);
                     });
                   }
                 });
@@ -1079,8 +1078,9 @@ void checkUnassignedPaths(SexpPrinter &printer, TypeEnv &env, Module &m) {
         printer.inList("echo", [&]() { printer.printString(note); });
 
         printer.inList("assert", [&]() {
-          printer.inList(
-              "not", [&]() { dump_is_def_assign(printer, env.analysis, v); });
+          printer.inList("not", [&]() {
+            dump_is_def_assign(printer, env.analysis, v, env);
+          });
         });
 
         auto next_sectype = sectype->next_cycle(env);
@@ -1375,19 +1375,18 @@ void typecheck_assignment_constraint(SexpPrinter &printer, SecType *lhs,
   collect_used_genvars(genvars, rhs, env);
   printer.lineBreak();
   printer.singleton("push");
+  Constraint c = Constraint(lhs, rhs, env.invariants, &pred);
+  dump_constraint(printer, c, genvars, env);
   if (checkDefAssign) {
     printer.startList("assert");
     // TODO make the genvars get selected based on defAssign analysis
     // for only this assertion
-    start_dump_genvar_quantifiers(printer, genvars, env);
     printer.startList("not");
-    dump_is_def_assign(printer, env.analysis, checkDefAssign->get_full_name());
+    dump_is_def_assign(printer, env.analysis, checkDefAssign->get_full_name(),
+                       env);
     printer.endList();
-    end_dump_genvar_quantifiers(printer, genvars);
     printer.endList();
   }
-  Constraint c = Constraint(lhs, rhs, env.invariants, &pred);
-  dump_constraint(printer, c, genvars, env);
 
   printer.addComment(note);
   printer.startList("echo");
@@ -1471,7 +1470,7 @@ void typecheck_assignment(SexpPrinter &printer, PExpr *lhs, PExpr *rhs,
       if (!defAssgns.contains(lhs->get_name())) {
         string newNote = note + "--No-sensitive-upgrade-check;";
         Predicate emptyPred;
-        typecheck_assignment_constraint(printer, ltype_orig, env.pc, emptyPred,
+        typecheck_assignment_constraint(printer, ltype_orig, env.pc, precond,
                                         newNote, NULL, env);
       }
       printer.singleton("pop");
@@ -1904,16 +1903,18 @@ void PCase::typecheck(SexpPrinter &printer, TypeEnv &env, Predicate &pred,
       }
     }
   }
+  SecType *oldpc               = env.pc;
+  set<Hypothesis *> beforecase = pred.hypotheses;
+  Predicate tmp                = pred;
+  Predicate aftercase;
 
   for (unsigned idx = 0; idx < items_->count(); idx += 1) {
     PCase::Item *cur = (*items_)[idx];
-    SecType *oldpc   = env.pc;
     bool need_hypo =
         env.dep_exprs.find(expr_->get_name()) != env.dep_exprs.end();
     env.pc = new JoinType(expr_->typecheck(printer, env), oldpc);
     env.pc = env.pc->simplify();
 
-    Predicate oldh = pred;
     if (need_hypo) {
       if (cur->expr.count() != 0) {
         for (unsigned e = 0; e < cur->expr.count(); e += 1)
@@ -1925,10 +1926,12 @@ void PCase::typecheck(SexpPrinter &printer, TypeEnv &env, Predicate &pred,
       cur->stat->typecheck(
           printer, env, pred /* add case condition to assumptions */, defAssgn);
     }
-
-    pred   = oldh;
-    env.pc = oldpc;
+    merge(pred, tmp, aftercase);
+    tmp.hypotheses  = aftercase.hypotheses;
+    pred.hypotheses = beforecase;
   }
+  pred.hypotheses = aftercase.hypotheses;
+  env.pc          = oldpc;
 }
 
 /**

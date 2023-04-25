@@ -1,4 +1,3 @@
-(declare-fun LH_ARRAY ((Array Int Int) Int) Label)
-
-(assert (forall ((x (Array Int Int)) (y Int))
-	(= (LH_ARRAY x y) (LH (select x y)))))
+(define-fun LH_ARRAY ((x (Array Int Int)) (y Int)) Label
+	    (LH (select x y))
+)

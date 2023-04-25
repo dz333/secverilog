@@ -271,6 +271,7 @@ public:
   virtual void typecheck(SexpPrinter &printer, TypeEnv &env, Predicate &pred,
                          set<perm_string> &defAssgn) const;
   virtual void collectAssigned(set<perm_string> &s) const;
+  void merge(Predicate &, Predicate &, Predicate &) const;
   void absintp(Predicate &, TypeEnv &, unsigned idx) const;
   bool hasDefault() const {
     for (unsigned int i = 0; i < items_->count(); i++) {
