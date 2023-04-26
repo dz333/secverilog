@@ -424,6 +424,8 @@ struct Predicate {
 
   Predicate &operator=(const Predicate &);
   Predicate *subst(map<perm_string, perm_string> m) const;
+  Predicate() : hypotheses() {}
+  Predicate(const Predicate &p) : hypotheses(p.hypotheses) {}
 };
 
 struct Equality {

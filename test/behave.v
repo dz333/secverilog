@@ -49,7 +49,9 @@ module behave(clk, reset, secret);
    always@(*) begin
       if (x == 1) begin
 	 x = 0; //should fail
-	 y = 1; //should fail nsu check	 
+      end
+      if (x == 1) begin
+	 y = 1; //should fail nsu check
       end
    end
 

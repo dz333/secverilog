@@ -1217,7 +1217,11 @@ void typecheck_assignment_constraint(SexpPrinter &printer, SecType *lhs,
   printer.singleton("push");
   Constraint c = Constraint(lhs, rhs, env.invariants, &pred);
   dump_constraint(printer, c, genvars, env);
-  if (checkDefAssign) {
+  // this used to be if(checkDefAssign) which should generate a z3
+  // constraint for when the identifier checkDefAssign is NOT definitely
+  // assigned this should make the whole constraint unsat if the variable is
+  // definietly assigned on all paths
+  if (false) {
     printer.startList("assert");
     // TODO make the genvars get selected based on defAssign analysis
     // for only this assertion
@@ -1309,7 +1313,7 @@ void typecheck_assignment(SexpPrinter &printer, PExpr *lhs, PExpr *rhs,
       if (!defAssgns.contains(lhs->get_name())) {
         string newNote = note + "--No-sensitive-upgrade-check;";
         Predicate emptyPred;
-        typecheck_assignment_constraint(printer, ltype_orig, env.pc, emptyPred,
+        typecheck_assignment_constraint(printer, ltype_orig, env.pc, precond,
                                         newNote, NULL, env);
       }
       printer.singleton("pop");
@@ -1322,7 +1326,8 @@ void typecheck_assignment(SexpPrinter &printer, PExpr *lhs, PExpr *rhs,
       //   - lident has a recursive dep type
       //   - lident is not definitely assigned
       //   - lident is a NEXT type (i.e., it's a register assignment)
-      if ((ltype_orig->isDepType() && lbase->isNextType())) {
+      if (!defAssgns.contains(lhs->get_name()) &&
+          (ltype_orig->isDepType() && lbase->isNextType())) {
         PEIdent *origName = lident->get_this_cycle_name();
         // is recursive if ltype contains lident
         if (ltype_orig->hasExpr(origName->get_name())) {
@@ -1742,16 +1747,18 @@ void PCase::typecheck(SexpPrinter &printer, TypeEnv &env, Predicate &pred,
       }
     }
   }
+  SecType *oldpc               = env.pc;
+  set<Hypothesis *> beforecase = pred.hypotheses;
+  Predicate tmp                = pred;
+  Predicate aftercase;
 
   for (unsigned idx = 0; idx < items_->count(); idx += 1) {
     PCase::Item *cur = (*items_)[idx];
-    SecType *oldpc   = env.pc;
     bool need_hypo =
         env.dep_exprs.find(expr_->get_name()) != env.dep_exprs.end();
     env.pc = new JoinType(expr_->typecheck(printer, env), oldpc);
     env.pc = env.pc->simplify();
 
-    Predicate oldh = pred;
     if (need_hypo) {
       if (cur->expr.count() != 0) {
         for (unsigned e = 0; e < cur->expr.count(); e += 1)
@@ -1763,10 +1770,12 @@ void PCase::typecheck(SexpPrinter &printer, TypeEnv &env, Predicate &pred,
       cur->stat->typecheck(
           printer, env, pred /* add case condition to assumptions */, defAssgn);
     }
-
-    pred   = oldh;
-    env.pc = oldpc;
+    merge(pred, tmp, aftercase);
+    tmp.hypotheses  = aftercase.hypotheses;
+    pred.hypotheses = beforecase;
   }
+  pred.hypotheses = aftercase.hypotheses;
+  env.pc          = oldpc;
 }
 
 /**
