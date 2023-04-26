@@ -1377,7 +1377,11 @@ void typecheck_assignment_constraint(SexpPrinter &printer, SecType *lhs,
   printer.singleton("push");
   Constraint c = Constraint(lhs, rhs, env.invariants, &pred);
   dump_constraint(printer, c, genvars, env);
-  if (checkDefAssign) {
+  // this used to be if(checkDefAssign) which should generate a z3
+  // constraint for when the identifier checkDefAssign is NOT definitely
+  // assigned this should make the whole constraint unsat if the variable is
+  // definietly assigned on all paths
+  if (false) {
     printer.startList("assert");
     // TODO make the genvars get selected based on defAssign analysis
     // for only this assertion
@@ -1483,7 +1487,8 @@ void typecheck_assignment(SexpPrinter &printer, PExpr *lhs, PExpr *rhs,
       //   - lident has a recursive dep type
       //   - lident is not definitely assigned
       //   - lident is a NEXT type (i.e., it's a register assignment)
-      if ((ltype_orig->isDepType() && lbase->isNextType())) {
+      if (!defAssgns.contains(lhs->get_name()) &&
+          (ltype_orig->isDepType() && lbase->isNextType())) {
         PEIdent *origName = lident->get_this_cycle_name();
         // is recursive if ltype contains lident
         if (ltype_orig->hasExpr(origName->get_name())) {
