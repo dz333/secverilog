@@ -24,7 +24,7 @@ PathAnalysis get_paths(Module &m, TypeEnv &env);
  * @param paths a path analyis returned from get_paths
  * @param var the name of the variable from paths to check
  */
-void dump_is_def_assign(SexpPrinter &p, PathAnalysis &paths, perm_string var,
+void dump_is_def_assign(SexpPrinter &p, PathAnalysis &paths, const PEIdent &var,
                         TypeEnv &env);
 /**
  * Dump constraints to the solver to check that every variable
@@ -59,6 +59,13 @@ std::set<perm_string> getArrayIndices(perm_string array_name,
 /**
  * Dump the conditions that we are on one of the paths in {@param paths}
  */
-void dump_on_paths(SexpPrinter &p, const std::vector<Predicate> &paths,
+void dump_on_paths(SexpPrinter &p, const std::vector<AssignmentPath> &paths,
                    TypeEnv &env);
+
+void dump_isnt_assigned_normal(SexpPrinter &p, const perm_string base_name,
+                               TypeEnv &env);
+
+void dump_isnt_assigned_array(SexpPrinter &p, const perm_string base_name,
+                              int idx, TypeEnv &env);
+
 #endif

@@ -383,6 +383,7 @@ class PEIdent : public PExpr {
 public:
   explicit PEIdent(perm_string);
   explicit PEIdent(const pform_name_t &);
+  explicit PEIdent(const PEIdent &other) : PEIdent(other.path_) {}
   ~PEIdent();
 
   // Add another name to the string of hierarchy that is the
@@ -390,6 +391,7 @@ public:
   void append_name(perm_string);
   virtual PExpr *next_cycle_transform(SexpPrinter &, TypeEnv &env);
   virtual const perm_string get_name() const;
+  PEIdent getBaseIdent() const { return PEIdent(get_name()); }
   virtual const perm_string get_full_name() const;
   virtual void dump(ostream &) const;
   virtual void dumpz3(SexpPrinter &) const;
@@ -443,6 +445,10 @@ public:
 
   // un-nextify the top level names
   virtual PEIdent *get_this_cycle_name();
+
+  friend bool operator<(const PEIdent &a, const PEIdent &b) {
+    return a.get_full_name() < b.get_full_name();
+  }
 
 private:
   pform_name_t path_;
