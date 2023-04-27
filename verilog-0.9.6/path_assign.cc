@@ -131,6 +131,9 @@ void dump_isnt_assigned_normal(SexpPrinter &p, const perm_string base_name,
 
   p.inList("not", [&]() {
     p.inList("or", [&]() {
+      if (exp_paths.begin() == exp_paths.end()) {
+        p << "false";
+      }
       for (auto &[_, path] : exp_paths) {
         p << path;
       }
