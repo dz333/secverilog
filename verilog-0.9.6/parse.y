@@ -2399,18 +2399,23 @@ module_item
 		}
 
 	| port_type signed_opt range_opt delay3_opt base_type sec_label list_of_identifiers ';'
-		{
+
+        {
             SecType*st = $6;
             BaseType*bt = $5;
             assert(st);
+            //we need a copy since pform_set_port_type will trash $3
+            svector<PExpr*> *range;
+            if ($3) { range = new svector<PExpr*>(*$3); }
             list<perm_string>* nexted_list = nextify_perm_strings($7);
             pform_set_port_type(@1, $7, $3, $2, $1, st, bt);
             if(bt->isSeqType()){
                 //TODO untested
-                BaseType*nt = new NextType();
-                pform_set_port_type(@1, nexted_list, $3, $2, $1, st, nt);
+
+              BaseType*nt = new NextType();
+              pform_set_port_type(@1, nexted_list, range, $2, $1, st, nt);
             }
-		}
+        }
 
   /* The next two rules handle Verilog 2001 statements of the form:
        input wire signed [h:l] <list>;
@@ -3358,7 +3363,7 @@ range
 	;
 
 range_opt
-	: range
+        : range { $$ = $1; }
 	| { $$ = 0; }
 	;
 dimensions_opt
