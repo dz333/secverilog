@@ -791,7 +791,7 @@ bool Module::CollectDepInvariants(SexpPrinter &printer, TypeEnv &env) const {
 
   for (auto &p : env.analysis) {
     for (auto &pred : p.second) {
-      for (auto h : pred.hypotheses) {
+      for (auto h : pred.path.hypotheses) {
         h->bexpr_->collect_idens(pathVariables);
       }
     }
@@ -816,7 +816,9 @@ bool Module::CollectDepInvariants(SexpPrinter &printer, TypeEnv &env) const {
 
   for (auto &depVar : std::ranges::filter_view(env.dep_exprs, [&](auto &v) {
          return env.varsToBase.contains(v) && env.varsToBase.at(v) &&
-                env.varsToBase.at(v)->isSeqType();
+                env.varsToBase.at(v)->isSeqType() &&
+                wires.find(v)->second->get_port_type() ==
+                    NetNet::PortType::NOT_A_PORT;
        })) {
 
     auto wire      = wires.find(depVar);
@@ -824,112 +826,34 @@ bool Module::CollectDepInvariants(SexpPrinter &printer, TypeEnv &env) const {
     auto nextified = nextify_perm_string(depVar);
 
     if (def->get_isarray()) {
-      auto all_relevant =
-          std::ranges::filter_view(env.analysis,
-                                   [depVar](auto &v) {
-                                     auto str       = std::string(v.first);
-                                     auto brack_idx = str.find_first_of('[');
-                                     if (brack_idx == std::string::npos)
-                                       return false;
-                                     auto lit = perm_string::literal(
-                                         str.substr(0, brack_idx).c_str());
-                                     return lit == depVar;
-                                   }) |
-          std::views::transform([](auto &v) {
-            std::regex regex("\\[([^\\[]*)\\]");
-            auto str = std::string(v.first);
-            std::smatch match;
-            if (std::regex_search(str, match, regex)) {
-              return std::make_pair(match[1].str(), v.second);
-            } else {
-              auto msg = new std::string("Attempted to assign whole array: ");
-              *msg += str;
-              throw std::runtime_error(*msg);
-            }
-          });
-
       int range = def->getArrayRange();
-
-      printer.inList("assert", [&]() {
-        printer.inList("forall", [&]() {
-          printer << "((_i Int))";
-          printer.inList("=>", [&]() {
-            printer.inList("and", [&]() {
-              std::string range_str("(<= 0 _i) (< _i ");
-              range_str += std::to_string(range) + ")";
-              printer << range_str;
-              printer.inList("not", [&]() {
-                printer.inList("or", [&]() {
-                  if (!all_relevant.empty()) {
-                    for (const auto &a : all_relevant) {
-                      auto lit = perm_string::literal(a.first.c_str());
-                      if (env.genVarVals.contains(lit)) {
-                        auto lst = env.genVarVals[lit];
-                        printer.inList("and", [&]() {
-                          printer.inList("or", [&]() {
-                            for (auto value : lst)
-                              printer.inList("=", [&]() {
-                                printer << "_i" << std::to_string(value);
-                              });
-                          });
-                          std::map<perm_string, perm_string> mp{
-                              {lit, perm_string::literal("_i")}};
-                          for (const auto &path : std::ranges::transform_view(
-                                   a.second, [&mp](auto &pred) {
-                                     return *pred.subst(mp);
-                                   })) {
-                            printer << path;
-                          }
-                        });
-                      } else {
-                        // non genvars are treated normally
-                        printer.inList("and", [&]() {
-                          printer.inList("=",
-                                         [&]() { printer << "_i" << a.first; });
-                          printer.inList("not", [&]() {
-                            printer.inList("or", [&]() {
-                              for (const auto &path : a.second)
-                                printer << path;
-                            });
-                          });
-                        });
-                      }
-                    }
-                  } else {
-                    printer << "false";
-                  }
-                });
-              });
-            });
-            auto i_str = "_i";
-            printer.inList("=", [&]() {
-              printer.inList("select",
-                             [&]() { printer << nextified.str() << i_str; });
-              printer.inList("select",
-                             [&]() { printer << depVar.str() << i_str; });
-            });
-          });
-        });
-      });
-    } else {
-      auto &branches = env.analysis[depVar];
-      if (!branches.empty()) {
+      printer.addComment(
+          std::string("assertions for next cycle array wise values for ") +
+          depVar.str());
+      for (int i = 0; i < range; ++i) {
         printer.inList("assert", [&]() {
           printer.inList("=>", [&]() {
-            printer.inList("not", [&]() {
-              printer.inList("or", [&]() {
-                for (auto &path : branches)
-                  printer << path;
+            dump_isnt_assigned_array(printer, depVar, i, env);
+            printer.inList("=", [&]() {
+              printer.inList("select", [&]() {
+                printer << nextified << std::to_string(i);
               });
+              printer.inList("select",
+                             [&]() { printer << depVar << std::to_string(i); });
             });
-            printer.inList(
-                "=", [&]() { printer << nextified.str() << depVar.str(); });
           });
         });
       }
+    } else {
+      printer.inList("assert", [&]() {
+        printer.inList("=>", [&]() {
+          dump_isnt_assigned_normal(printer, depVar, env);
+          printer.inList("=", [&]() { printer << nextified << depVar; });
+        });
+      });
     }
+    printer.lineBreak();
   }
-
   return !outStr.empty();
 }
 
@@ -968,121 +892,37 @@ void checkUnassignedPaths(SexpPrinter &printer, TypeEnv &env, Module &m) {
 
       std::string note("checking unassigned paths of ");
       note += v.str();
+
       if (dynamic_cast<QuantType *>(sectype)) {
-        if (debug_typecheck)
-          cerr << v << " is an array\n";
-        // do array stuff;
-        auto all_relevant_view =
-            std::ranges::filter_view(env.analysis,
-                                     [v](auto &var) {
-                                       auto str       = std::string(var.first);
-                                       auto brack_idx = str.find_first_of('[');
-                                       if (brack_idx == 0)
-                                         brack_idx = str.size();
-                                       auto lit = perm_string::literal(
-                                           str.substr(0, brack_idx).c_str());
-                                       return lit == v;
-                                     }) |
-            std::views::transform([](auto &var) {
-              std::regex regex("\\[([^\\[]*)\\]");
-              auto str = std::string(var.first);
-              std::smatch match;
-              if (std::regex_search(str, match, regex)) {
+        auto range = wire->getArrayRange();
+        for (int i = 0; i < range; ++i) {
+          printer.singleton("push");
+          printer.inList("echo", [&]() {
+            printer.printString((note + "[") + std::to_string(i) + "]");
+          });
+          printer.inList("assert", [&]() {
+            dump_isnt_assigned_array(printer, v, i, env);
+          });
 
-                // auto lit = perm_string::literal(match[1].str().c_str());
-                return std::make_pair(match[1].str(), var.second);
-              }
-              throw std::runtime_error("failed to match");
-            });
-        std::vector all_relevant_vec(all_relevant_view.begin(),
-                                     all_relevant_view.end());
-        auto all_relevant =
-            std::ranges::filter_view(all_relevant_vec, [&env](auto &pr) {
-              auto lit = perm_string::literal(pr.first.c_str());
-              return !env.genVarVals.contains(lit);
-            });
-        int range = wire->getArrayRange(); // 1 << (def->getRange() + 1);
+          auto idx     = new PENumber(new verinum(i));
+          auto applied = dynamic_cast<QuantType *>(sectype->apply_index(idx));
+          idx          = new PENumber(new verinum(i));
+          auto next_sectype = dynamic_cast<QuantType *>(
+              sectype->next_cycle(env)->apply_index(idx));
 
-        std::vector filtered_relevant(all_relevant.begin(), all_relevant.end());
-        if (debug_typecheck) {
-          std::cerr << "range is 0-" << range << endl;
-          std::cerr << "all relevant size: " << filtered_relevant.size()
-                    << endl;
+          Predicate empty;
+          Constraint c(next_sectype, applied, env.invariants, &empty);
+          set<perm_string> empty_genvars;
+          dump_constraint(printer, c, empty_genvars, env);
+
+          printer.singleton("check-sat");
+          printer.singleton("pop");
         }
-
-        if (!filtered_relevant.empty()) {
-          for (int i = 0; i < range; ++i) {
-            printer.singleton("push");
-            printer.inList("echo", [&]() {
-              printer.printString((note + "[") + std::to_string(i) + "]");
-            });
-            printer.inList("assert", [&]() {
-              printer.inList("not", [&]() {
-                printer.inList("or", [&]() {
-                  if (debug_typecheck)
-                    cerr << "back here..." << endl;
-                  for (const auto &a : filtered_relevant) {
-                    if (debug_typecheck)
-                      cerr << "index: " << i << ", index var: " << a.first
-                           << endl;
-                    printer.inList("and", [&]() {
-                      printer.inList("=", [&]() {
-                        printer << std::to_string(i) << a.first;
-                      });
-                      dump_on_paths(printer, a.second, env);
-                    });
-                  }
-                });
-              });
-            });
-            if (debug_typecheck)
-              cerr << "got here..." << endl;
-
-            std::stringstream ss;
-            SexpPrinter tmp(ss, 99999);
-            sectype->dump(tmp);
-            auto quantified = dynamic_cast<QuantType *>(sectype);
-
-            if (debug_typecheck)
-              cerr << "and here..." << endl;
-
-            auto idx = new PENumber(new verinum(i));
-            auto applied =
-                dynamic_cast<QuantType *>(quantified->apply_index(idx));
-            if (debug_typecheck)
-              cerr << "here?" << endl;
-
-            idx               = new PENumber(new verinum(i));
-            auto next_sectype = dynamic_cast<QuantType *>(
-                quantified->next_cycle(env)->apply_index(idx));
-
-            if (debug_typecheck) {
-              cerr << "this_inner: " << *applied->getInnerType() << endl
-                   << "next inner: " << *next_sectype->getInnerType() << endl;
-            }
-
-            Predicate empty;
-            Constraint c(next_sectype, applied, env.invariants, &empty);
-            set<perm_string> empty_genvars;
-            dump_constraint(printer, c, empty_genvars, env);
-
-            printer.singleton("check-sat");
-            printer.singleton("pop");
-          }
-        }
-
       } else {
-        if (debug_typecheck)
-          cerr << v << " is not an array\n";
         printer.singleton("push");
         printer.inList("echo", [&]() { printer.printString(note); });
-
-        printer.inList("assert", [&]() {
-          printer.inList("not", [&]() {
-            dump_is_def_assign(printer, env.analysis, v, env);
-          });
-        });
-
+        printer.inList("assert",
+                       [&]() { dump_isnt_assigned_normal(printer, v, env); });
         auto next_sectype = sectype->next_cycle(env);
         Predicate empty;
         Constraint c(next_sectype, sectype, env.invariants, &empty);
@@ -1386,8 +1226,7 @@ void typecheck_assignment_constraint(SexpPrinter &printer, SecType *lhs,
     // TODO make the genvars get selected based on defAssign analysis
     // for only this assertion
     printer.startList("not");
-    dump_is_def_assign(printer, env.analysis, checkDefAssign->get_full_name(),
-                       env);
+    dump_is_def_assign(printer, env.analysis, *checkDefAssign, env);
     printer.endList();
     printer.endList();
   }

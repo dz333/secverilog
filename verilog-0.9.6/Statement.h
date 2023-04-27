@@ -98,7 +98,8 @@ public:
                                       Predicate &pred);
   virtual void collect_index_exprs(set<perm_string> &exprs, TypeEnv &);
   virtual void collect_assign_paths(PathAnalysis &paths, TypeEnv &env,
-                                    Predicate &pred);
+                                    Predicate &pred,
+                                    const std::set<perm_string> &genvars);
   map<perm_string, PExpr *> attributes;
 };
 
@@ -119,7 +120,8 @@ public:
   virtual void collectAssigned(set<perm_string> &s) const;
   virtual void collect_index_exprs(set<perm_string> &exprs, TypeEnv &);
   virtual void collect_assign_paths(PathAnalysis &paths, TypeEnv &env,
-                                    Predicate &pred);
+                                    Predicate &pred,
+                                    const std::set<perm_string> &genvars);
 
   PExpr *lval() const { return lval_; }
   PExpr *rval() const { return rval_; }
@@ -211,7 +213,8 @@ public:
                                       Predicate &pred);
   virtual void collect_index_exprs(set<perm_string> &exprs, TypeEnv &);
   virtual void collect_assign_paths(PathAnalysis &paths, TypeEnv &env,
-                                    Predicate &pred);
+                                    Predicate &pred,
+                                    const std::set<perm_string> &genvars);
 
 private:
   const BL_TYPE bl_type_;
@@ -309,7 +312,8 @@ public:
   virtual void collectAssigned(set<perm_string> &s) const;
   virtual void collect_index_exprs(set<perm_string> &exprs, TypeEnv &);
   virtual void collect_assign_paths(PathAnalysis &paths, TypeEnv &env,
-                                    Predicate &pred);
+                                    Predicate &pred,
+                                    const std::set<perm_string> &genvars);
   void absintp(Predicate &, TypeEnv &) const;
 
 private:
@@ -336,7 +340,8 @@ public:
                                       Predicate &pred);
   virtual void collect_index_exprs(set<perm_string> &exprs, TypeEnv &);
   virtual void collect_assign_paths(PathAnalysis &paths, TypeEnv &env,
-                                    Predicate &pred);
+                                    Predicate &pred,
+                                    const std::set<perm_string> &genvars);
 
   void absintp(Predicate &pred, TypeEnv &, bool istrue,
                bool useAllVars = false) const;
@@ -441,7 +446,8 @@ public:
   virtual void collectAssigned(set<perm_string> &s) const;
   virtual void collect_index_exprs(set<perm_string> &exprs, TypeEnv &);
   virtual void collect_assign_paths(PathAnalysis &paths, TypeEnv &env,
-                                    Predicate &pred);
+                                    Predicate &pred,
+                                    const std::set<perm_string> &genvars);
 
   void absintp(Predicate &, TypeEnv &) const;
   bool has_aa_term(Design *des, NetScope *scope);
@@ -512,7 +518,8 @@ public:
   virtual void collectAssigned(set<perm_string> &s) const;
   virtual void collect_index_exprs(set<perm_string> &exprs, TypeEnv &);
   virtual void collect_assign_paths(PathAnalysis &paths, TypeEnv &env,
-                                    Predicate &pred);
+                                    Predicate &pred,
+                                    const std::set<perm_string> &genvars);
 
   void absintp(Predicate &, TypeEnv &) const;
 

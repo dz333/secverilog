@@ -1,6 +1,7 @@
 #ifndef SEXP_WRITER
 #define SEXP_WRITER
 
+#include "StringHeap.h"
 #include <fstream>
 #include <functional>
 #include <string>
@@ -41,6 +42,17 @@ public:
     sp.printAtom(atom);
     return sp;
   }
+
+  friend SexpPrinter &operator<<(SexpPrinter &sp, const perm_string str) {
+    sp.printAtom(str.str());
+    return sp;
+  }
+
+  friend SexpPrinter &operator<<(SexpPrinter &sp, const char *str) {
+    sp.printAtom(str);
+    return sp;
+  }
+
   const unsigned int margin;
   const unsigned int tabsize;
   const bool allow_naked_atom;

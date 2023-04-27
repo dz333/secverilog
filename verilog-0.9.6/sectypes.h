@@ -447,7 +447,12 @@ struct Invariant {
   set<Equality *> invariants;
 };
 
-using PathAnalysis = std::map<perm_string, std::vector<Predicate>>;
+struct AssignmentPath {
+  Predicate path;
+  std::set<perm_string> genvars;
+};
+
+using PathAnalysis = std::map<PEIdent, std::vector<AssignmentPath>>;
 
 struct TypeEnv {
   map<perm_string, SecType *> varsToType;
