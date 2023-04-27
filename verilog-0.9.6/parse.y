@@ -2410,8 +2410,7 @@ module_item
             list<perm_string>* nexted_list = nextify_perm_strings($7);
             pform_set_port_type(@1, $7, $3, $2, $1, st, bt);
             if(bt->isSeqType()){
-                //TODO untested
-
+              /* previous copy is needed here */
               BaseType*nt = new NextType();
               pform_set_port_type(@1, nexted_list, range, $2, $1, st, nt);
             }
