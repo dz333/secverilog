@@ -1336,8 +1336,8 @@ void typecheck_assignment(SexpPrinter &printer, PExpr *lhs, PExpr *rhs,
           //  rtype also flows to cur cycle label of lident in any context
           string newNote = note + "--No-sensitive-upgrade-check;";
           Predicate emptyPred;
-          typecheck_assignment_constraint(printer, ltype_orig, env.pc,
-                                          emptyPred, newNote, origName, env);
+          typecheck_assignment_constraint(printer, ltype_orig, env.pc, precond,
+                                          newNote, origName, env);
         }
       }
     }
