@@ -511,21 +511,26 @@ inline ostream &operator<<(ostream &o, SecType &t) {
 }
 
 inline SexpPrinter &operator<<(SexpPrinter &printer, const Predicate &pred) {
-  auto l = pred.hypotheses;
-  auto i = l.begin();
-  if (l.size() > 1) {
-    printer.startList();
-    printer << "and";
-  }
-  if (i != l.end()) {
-    (*i)->bexpr_->dumpz3(printer);
-    ++i;
-  }
-  for (; i != l.end(); ++i) {
-    (*i)->bexpr_->dumpz3(printer);
-  }
-  if (l.size() > 1)
-    printer.endList();
+  printer.inList("and", [&]() {
+    for (auto hyp : pred.hypotheses) {
+      hyp->bexpr_->dumpz3(printer);
+    }
+  });
+  // auto l = pred.hypotheses;
+  // auto i = l.begin();
+  // if (l.size() > 1) {
+  //   printer.startList();
+  //   printer << "and";
+  // }
+  // if (i != l.end()) {
+  //   (*i)->bexpr_->dumpz3(printer);
+  //   ++i;
+  // }
+  // for (; i != l.end(); ++i) {
+  //   (*i)->bexpr_->dumpz3(printer);
+  // }
+  // if (l.size() > 1)
+  //   printer.endList();
   return printer;
 }
 
