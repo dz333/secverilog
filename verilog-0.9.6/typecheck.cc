@@ -1312,7 +1312,6 @@ void typecheck_assignment(SexpPrinter &printer, PExpr *lhs, PExpr *rhs,
       // NSU check if not definitely assigned:
       if (!defAssgns.contains(lhs->get_name())) {
         string newNote = note + "--No-sensitive-upgrade-check;";
-        Predicate emptyPred;
         typecheck_assignment_constraint(printer, ltype_orig, env.pc, precond,
                                         newNote, NULL, env);
       }
@@ -1335,7 +1334,6 @@ void typecheck_assignment(SexpPrinter &printer, PExpr *lhs, PExpr *rhs,
           //  (leq pc ltype_orig)
           //  rtype also flows to cur cycle label of lident in any context
           string newNote = note + "--No-sensitive-upgrade-check;";
-          Predicate emptyPred;
           typecheck_assignment_constraint(printer, ltype_orig, env.pc, precond,
                                           newNote, origName, env);
         }
