@@ -6,7 +6,7 @@ use strict vars;
 
 my $z3home =""; # specify z3 home directory
 my $iveriloghome = "/home/drew/volume/secverilog/bin/"; # specify iverilog home directory
-my $z3option = "smt2";
+my $z3option = "-smt2 ";
 my $secoption = "";
 
 my $base_expected_str = "base conditions are satisfiable? (should be sat)\n";
@@ -27,12 +27,13 @@ sub help_message() {
   print "Usage: secverilog.pl [-F depfun] [-l lattice] [-z] file.v \n";
   print "-F depfun: provide a z3 file that defines type-level functions \n";
   print "-l lattice: provide a z3 file that defines a lattice of security labels \n";
+  print "-t msec: provide timeout per z3 query \n";
   print "-z: quit after type checking \n";
 }
 
-our ($opt_F, $opt_l, $opt_z, $assert);
+our ($opt_F, $opt_l, $opt_t, $opt_z, $assert);
 # parse options passed to SecVerilog
-if (not getopts("F:l:z")) {
+if (not getopts("F:l:t:z")) {
   help_message();
   exit(1);
 }
@@ -40,6 +41,7 @@ if (not getopts("F:l:z")) {
 if ($opt_F) { $secoption .= "-F $opt_F "; }
 if ($opt_l) { $secoption .= "-l $opt_l "; }
 if ($opt_z) { $secoption .= "-z "; }
+if ($opt_t) { $z3option  .= "-t:$opt_t"; }
 # my @files = <*>;
 my @files = ();
 foreach (@ARGV)
@@ -63,7 +65,7 @@ foreach my $file (@files) {
 
     # read the output of Z3
     my $z3bin = "$z3home"."z3";
-    my $str = `$z3bin -$z3option $prefix.z3`;
+    my $str = `$z3bin $z3option $prefix.z3`;
     $file = "$prefix.z3";
     
     # parse the input constraint file to identify assertions 
