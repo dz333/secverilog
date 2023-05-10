@@ -1,9 +1,9 @@
 Start base conditions are satisfiable? (should be sat)
-unknown
+sat
 End base conditions are satisfiable?
 unsat
 unsat
-unknown
+sat
 unsat
 unsat
 unsat
@@ -54,4 +54,4 @@ unsat
 unsat
 unsat
 unsat
-unknown
+sat

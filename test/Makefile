@@ -23,7 +23,7 @@ z3files: $(BENCH_SMT)
 
 %.out: %.z3
 	@echo "Generating $@"
-	@z3 -smt2 -T:30 -t:5000 $< | grep "sat\|unknown\|error" > $@
+	@z3 -smt2 sat.smt=true -T:30 -t:20000 $< | grep "sat\|unknown\|error" > $@
 
 %.diff: %.out %.expected
 	@echo "Checking Diff"

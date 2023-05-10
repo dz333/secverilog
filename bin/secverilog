@@ -6,7 +6,7 @@ use strict vars;
 
 my $z3home =""; # specify z3 home directory
 my $iveriloghome = "/home/drew/volume/secverilog/bin/"; # specify iverilog home directory
-my $z3option = "-smt2 ";
+my $z3option = "-smt2 sat.smt=true ";
 my $secoption = "";
 
 my $base_expected_str = "base conditions are satisfiable? (should be sat)\n";
