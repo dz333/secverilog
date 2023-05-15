@@ -785,9 +785,6 @@ bool Module::CollectDepInvariants(SexpPrinter &printer, TypeEnv &env) const {
 
   // variables that show up on a path need to be declared
   set<perm_string> pathVariables;
-  // auto portVars =
-  //     std::ranges::transform_view(ports, [](auto &port) { return port->name;
-  //     });
 
   for (auto &p : env.analysis) {
     for (auto &pred : p.second) {
@@ -796,25 +793,30 @@ bool Module::CollectDepInvariants(SexpPrinter &printer, TypeEnv &env) const {
       }
     }
   }
-  // set<perm_string> pathVariables = pathVariables;
-  //  std::set_intersection(
-  //      pathVariables.begin(), pathVariables.end(), portVars.begin(),
-  //      portVars.end(),
-  //      std::inserter(pathVariables, pathVariables.end()));
 
   for (auto &de : env.dep_exprs) {
     pathVariables.erase(de);
   }
 
   set<perm_string> newVars;
-  std::set_union(newDeps.begin(), newDeps.end(), pathVariables.begin(),
-                 pathVariables.end(), std::inserter(newVars, newVars.end()));
+
+  std::ranges::set_union(newDeps, pathVariables,
+                         std::inserter(newVars, newVars.end()));
   dumpExprDefs(printer, newVars);
 
   auto outStr = invs.str();
   printer.writeRawLine(outStr);
 
-  for (auto &depVar : std::ranges::filter_view(env.dep_exprs, [&](auto &v) {
+  set<perm_string> allVars;
+
+  for (auto v : newDeps) {
+    std::cout << "adding assertion about " << v << std::endl;
+  }
+
+  std::ranges::set_union(env.dep_exprs, newDeps,
+                         std::inserter(allVars, allVars.end()));
+
+  for (auto &depVar : std::ranges::filter_view(allVars, [&](auto &v) {
          return env.varsToBase.contains(v) && env.varsToBase.at(v) &&
                 env.varsToBase.at(v)->isSeqType() &&
                 wires.find(v)->second->get_port_type() ==
