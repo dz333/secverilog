@@ -809,10 +809,6 @@ bool Module::CollectDepInvariants(SexpPrinter &printer, TypeEnv &env) const {
 
   set<perm_string> allVars;
 
-  for (auto v : newDeps) {
-    std::cout << "adding assertion about " << v << std::endl;
-  }
-
   std::ranges::set_union(env.dep_exprs, newDeps,
                          std::inserter(allVars, allVars.end()));
 
